@@ -25,7 +25,8 @@ class Youtube extends Plugin {
 		
 		// Regex by noother
 		preg_match("#(www\.)?youtube\.com/.*?(\?|&)v=([a-zA-Z0-9_-]{11})#",$this->info['text'],$videoIdArray);
-		$videoId = $videoIdArray[3];
+		if (empty($videoIdArray)) return;
+        $videoId = $videoIdArray[3];
 		
 		if (!$this->validYoutubeId($videoId)) return;
 		
