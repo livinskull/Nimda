@@ -29,48 +29,69 @@ class Help extends Plugin {
 	}
 	
 	function displayOverview() {
-		
 		$this->sendOutput("Available commands:",$this->info['nick']);
 		$this->sendOutput("Type a '!' in front of each command.",$this->info['nick']);
 		
-		$sAvailCommands = '';
+		$aHelp = array(); // aHelp[$category] => array()
 		foreach ($this->IRCBot->plugins as $oPlg) {
+            $cat = isset($oPlg->CONFIG['help_category'])?$oPlg->CONFIG['help_category']:'misc';
+            if (!isset($aHelp[$cat]))
+                $aHelp[$cat] = array();
+        
 			if (isset($oPlg->CONFIG['help_triggers'])) {
 				preg_match_all("/'(.*?[^\\\\])'/",$oPlg->CONFIG['help_triggers'],$arr);
 				$htriggers = libArray::stripslashes($arr[1]);
-				$sAvailCommands .= implode(', ', $htriggers) . ', ';
+                foreach ($htriggers as $t)
+                    $aHelp[$cat][] = substr($t, 1);
 			} else {
-				$sAvailCommands .= implode(', ', $oPlg->triggers) . ', ';
-			}
-			if (strlen($sAvailCommands) > 400) {
-				$this->sendOutput($sAvailCommands, $this->info['nick']);
-				$sAvailCommands = '';
-			}
+                foreach ($oPlg->triggers as $t)
+                    $aHelp[$cat][] = substr($t, 1);
+			}	
 		}
 			
-		$sAvailCommands = substr($sAvailCommands, 0, strlen($sAvailCommands)-2);
-		$this->sendOutput($sAvailCommands, $this->info['nick']);
+        foreach ($aHelp as $cat => $arr) {
+            $output = $cat.': ';
+            sort($arr);
+            $output .= implode(', ', $arr);
+            $this->sendOutput($output, $this->info['nick']);
+        }
 		
 		$this->sendOutput("Type !help <command> to get a function explained.",$this->info['nick']);
 		$this->sendOutput("If you want Nimda in your channel, contact noother. (It's free!)",$this->info['nick']);
 	}
 
 	function displayHelp() {
-		// TODO: manage capitalizm =P
-		if (isset($this->IRCBot->plugins[$this->info['text']])) {
-			$sHelp = 'Plugin ' . $this->IRCBot->plugins[$this->info['text']]->name;
-			$sHelp .= ' v' . $this->IRCBot->plugins[$this->info['text']]->version;
-			$sHelp .= ' by ' . $this->IRCBot->plugins[$this->info['text']]->author;
+        if ($this->info['text'][0] != '!')
+            $this->info['text'] = '!'.$this->info['text'];
+        
+        if ($plg = $this->findPlugin($this->info['text'])) {
+			$sHelp = 'Plugin ' . $plg->name;
+			$sHelp .= ' v' . $plg->version;
+			if ($this->CONFIG['show_author'] != '0')
+                $sHelp .= ' by ' . $plg->author;
 			$this->sendOutput($sHelp);
-			$this->sendOutput($this->IRCBot->plugins[$this->info['text']]->description);
+			$this->sendOutput($plg->description);
 			
-			if (isset($this->IRCBot->plugins[$this->info['text']]->CONFIG['help_usage']))
-				$this->sendOutput('Usage: '.sprintf($this->IRCBot->plugins[$this->info['text']]->CONFIG['help_usage'], $this->info['text']));
+            $trg = substr($this->info['text'], 1);
+            
+            if (isset($plg->CONFIG['help_tr_'.$trg])) {
+                $this->sendOutput($plg->CONFIG['help_tr_'.$trg]);
+            } elseif (isset($plg->CONFIG['help'])) {
+                $this->sendOutput(sprintf($plg->CONFIG['help'], $this->info['text']));
+            }
 		} else {
 			$this->sendOutput($this->CONFIG['not_available_text']);
 		}
 	}
 
+    function findPlugin($trigger) {
+        foreach ($this->IRCBot->plugins as $oPlg) {
+            if (in_array($trigger, $oPlg->triggers))
+                return $oPlg;
+        }
+        return NULL;
+    }
+    
 }
 
 ?>
