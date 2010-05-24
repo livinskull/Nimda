@@ -22,54 +22,53 @@
 class Help extends Plugin {
 
 	function isTriggered() {
-		if(!isset($this->info['text'])) {
+		if(!isset($this->info['text']))
 			$this->displayOverview();
-		} else {
+		else 
 			$this->displayHelp();
-		}
 	}
 	
 	function displayOverview() {
+		
 		$this->sendOutput("Available commands:",$this->info['nick']);
 		$this->sendOutput("Type a '!' in front of each command.",$this->info['nick']);
 		
-		$level = $this->IRCBot->getUserLevel($this->info['nick']);
-		$sql = "SELECT command, category FROM help  WHERE level <= ".$level." ORDER BY category ASC, command ASC";
-		$res = $this->MySQL->sendQuery($sql);
-		
-		$help = array();
-		foreach($res['result'] as $topic) {
-			if(!isset($help[$topic['category']])) $help[$topic['category']] = array();
-			array_push($help[$topic['category']],$topic['command']);
-		}
-		
-		foreach($help as $category => $commands) {
-			$text = $category.": ";
-			foreach($commands as $command) {
-				$text.= $command.", ";
+		$sAvailCommands = '';
+		foreach ($this->IRCBot->plugins as $oPlg) {
+			if (isset($oPlg->CONFIG['help_triggers'])) {
+				preg_match_all("/'(.*?[^\\\\])'/",$oPlg->CONFIG['help_triggers'],$arr);
+				$htriggers = libArray::stripslashes($arr[1]);
+				$sAvailCommands .= implode(', ', $htriggers) . ', ';
+			} else {
+				$sAvailCommands .= implode(', ', $oPlg->triggers) . ', ';
 			}
-			$text = substr($text,0,-2);
-			$this->sendOutput($text,$this->info['nick']);
+			if (strlen($sAvailCommands) > 400) {
+				$this->sendOutput($sAvailCommands, $this->info['nick']);
+				$sAvailCommands = '';
+			}
 		}
+			
+		$sAvailCommands = substr($sAvailCommands, 0, strlen($sAvailCommands)-2);
+		$this->sendOutput($sAvailCommands, $this->info['nick']);
 		
 		$this->sendOutput("Type !help <command> to get a function explained.",$this->info['nick']);
 		$this->sendOutput("If you want Nimda in your channel, contact noother. (It's free!)",$this->info['nick']);
-		
 	}
-	
+
 	function displayHelp() {
-		$sql = "SELECT * FROM help WHERE command = '".addslashes($this->info['text'])."'";
-		$res = $this->MySQL->sendQuery($sql);
-		if($res['count'] == 0) {
-			$this->sendOutput("No information available about '".$this->info['text']."'");
-			return;
+		// TODO: manage capitalizm =P
+		if (isset($this->IRCBot->plugins[$this->info['text']])) {
+			$sHelp = 'Plugin ' . $this->IRCBot->plugins[$this->info['text']]->name;
+			$sHelp .= ' v' . $this->IRCBot->plugins[$this->info['text']]->version;
+			$sHelp .= ' by ' . $this->IRCBot->plugins[$this->info['text']]->author;
+			$this->sendOutput($sHelp);
+			$this->sendOutput($this->IRCBot->plugins[$this->info['text']]->description);
+			
+			if (isset($this->IRCBot->plugins[$this->info['text']]->CONFIG['help_usage']))
+				$this->sendOutput('Usage: '.sprintf($this->IRCBot->plugins[$this->info['text']]->CONFIG['help_usage'], $this->info['text']));
+		} else {
+			$this->sendOutput($this->CONFIG['not_available_text']);
 		}
-		
-		$help = $res['result'][0];
-		
-		$text = "Usage: ".$help['usage'].", ".$help['text'];
-		$this->sendOutput($text,$this->info['nick']);
-		
 	}
 
 }
