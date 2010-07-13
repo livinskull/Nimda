@@ -62,16 +62,29 @@ class Seen extends Plugin {
 	function onChannelMessage() {
 		$this->init();
 		
-		$sql = "UPDATE
-					seen
-				SET
-					channel = '".$this->channel."',
-					action = 'PRIVMSG',
-					text = '".$this->text."',
-					last_update = NOW()
-				WHERE
-					nick='".$this->nick."'
-				";
+		if(!$this->userInDb()) {
+			$sql = "INSERT INTO
+						seen(nick, channel, action, text, last_update)
+					VALUES
+						(
+						'".$this->nick."','"
+						.$this->channel
+						."','PRIVMSG','"
+						.$this->text."',NOW()
+						)
+					";
+		} else {		
+			$sql = "UPDATE
+						seen
+					SET
+						channel = '".$this->channel."',
+						action = 'PRIVMSG',
+						text = '".$this->text."',
+						last_update = NOW()
+					WHERE
+						nick='".$this->nick."'
+					";
+		}
 		$this->MySQL->sendQuery($sql);
 	}
 	
@@ -79,7 +92,6 @@ class Seen extends Plugin {
 		$this->nick    = addslashes($this->info['nick']);
 		$this->channel = addslashes($this->info['channel']);
 		$this->text    = addslashes($this->info['text']);
-		if(!$this->userInDb()) $this->insertUser();
 	}
 	
 	function userInDb() {
@@ -88,10 +100,6 @@ class Seen extends Plugin {
 	return true;
 	}
 	
-	function insertUser() {
-		$this->MySQL->sendQuery("INSERT INTO seen (nick) VALUES ('".$this->nick."')");
-	return true;
-	}
 }
 
 ?>
