@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 /*
 	This file is part of Nimda - An advanced event-driven IRC Bot written in PHP with a nice plugin system
@@ -19,65 +19,94 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
-define('MOVIE_HOST', 'www.moviemaze.de');
+/**
+ * moviePlugin
+ * fetches information from ofdb.de using ofdbgw.org XML gateway
+ * 
+ * TODO: fix length bug.. on the console it send mroe text than arrives
+ */
 
 class movie extends Plugin {
 
 	function isTriggered() {
 		if(!isset($this->info['text'])) {
-			//$this->sendOutput("Usage: ".$this->info['triggerUsed']." <movie>");
             $this->sendOutput(sprintf($this->CONFIG['help'],$this->info['triggerUsed']));
 			return;
 		}
 		
 		$term = $this->info['text'];
 		
-        $result = libHTTP::POST(MOVIE_HOST, '/suche/result.phtml', 'searchword='.$term);
-        //print_r($result);
-        if (preg_match_all('/<a href=\"\/filme\/(.*)?\.html\">\s*<b style=\"(.*)?\">(.*)?<\/b>\s*<\/a>/i', $result['raw'], $movies, PREG_SET_ORDER)) {
-            print_r($movies);
-            $output = '';
-            if (count($movies) > 1 && strtolower($movies[0][3]) != strtolower($term)) {
-                // several results
-                $this->sendOutput($this->CONFIG['several_text']);
-                foreach ($movies as $movie)
-                    $output .= $movie[3].'; ';
-                    
-                if (count($movies))
-                    $output = substr($output, 0, strlen($output)-2);
-                
-            } else {
-                // one result
-                $link = '/filme/'.$movies[0][1].'.html';
-                
-                $result = libHTTP::GET(MOVIE_HOST, $link);
-                
-                //name & year
-                if (preg_match('/<span class=\"fn\"><h1>.*?<\/h1><\/span><\/span><h2>\((.*?)\)/i', $result['raw'], $arr))
-                    $output .= html_entity_decode($arr[1]).': ';
-                   
-                // genre
-                //if (preg_match('/<span class=\"fett\">Genre:<\/span><\/td>\s*<td class="\standard\" valign=\"top\">\s*(.*?)\s*<\/td>/i', $result['raw'], $arr))
-                //    $output .= '( '.html_entity_decode($arr[1]).' ) : ';
-                //print_r($arr);
-                    
-                // description
-                if (preg_match('/<div id=\"plot\">\s*<!--.*-->(.*?)<\/div>/i', $result['raw'], $arr))
-                    $output .= html_entity_decode($arr[1]);
-                
-                $link = '( http://'.MOVIE_HOST.$link.' )';
-                $output = substr($output,0,$this->CONFIG['max_length']-(strlen($link)+8)).'... '.$link;
-                
-            }
-            
-            $this->sendOutput($output);
+        if (isset($this->aPossibilities[strtolower($term)]) && !empty($this->aPossibilities[strtolower($term)])) {
+            $aOut = $this->getMovie($this->aPossibilities[strtolower($term)]);
+            for ($i=0; $i<count($aOut), $i++)
+                $this->sendOutput($aOut[$i]);
         } else {
-            $this->sendOutput($this->CONFIG['notfound_text']);
+            $iRetries = 0;  // workaround for xml gateway bug not always returning sth
+            do {
+                $result = libHTTP::GET($this->CONFIG['host'], '/search/'.urlencode($term));
+                $xml = simplexml_load_string($result['raw']);
+           } while (!$xml && ++$iRetries < $this->CONFIG['max_retries']); 
+           
+            $number = isset($xml->resultat->eintrag)?(is_array($xml->resultat->eintrag)?count($xml->resultat->eintrag):1):0;
+            
+            if ($number) {
+                $output = '';
+                if ($number == 1) {
+                    $aOut = $this->getMovie($xml->resultat->eintrag[0]->id);
+                    for ($i=0; $i<count($aOut), $i++)
+                        $this->sendOutput($aOut[$i]);
+                    
+                } else {
+                    $this->sendOutput($this->CONFIG['several_text']);
+                    
+                    $this->aPossibilities = array();
+                    for ($i=0; $i<$number; $i++) {
+                        $output .= $xml->resultat->eintrag[$i]->titel . ' (' . $xml->resultat->eintrag[$i]->jahr .'); ';
+                        $this->aPossibilities[strtolower($xml->resultat->eintrag[$i]->titel)] = $xml->resultat->eintrag[$i]->id;
+                    }
+                    
+                    $output = mb_substr($output, 0, -2, 'UTF-8'); 
+                    if (mb_strlen($output, 'UTF-8') > $this->CONFIG['max_length'])
+                        $output = mb_substr($output,0,$this->CONFIG['max_length'], 'UTF-8').'...';
+                }
+                
+                $this->sendOutput($output);
+            } else {
+                $this->sendOutput($this->CONFIG['notfound_text']);
+            }
         }
 
         return;
 	}
 	
+    /**
+     * fetches information about a single movie
+     * @param $id $id of movie
+     * @return array $ret array containing messages to send back to user_error
+     */
+    function getMovie($id) {
+        $ret = array();
+        $iRetries = 0;
+        do {
+            $resMovie = libHTTP::GET($this->CONFIG['host'], '/movie/'.$id);
+            $xmlMovie = simplexml_load_string($resMovie['raw']);
+        } while (!$xmlMovie && ++$iRetries < $this->CONFIG['max_retries']);
+        
+        if ($xmlMovie && $xmlMovie->status->rcode == '0') {
+            $output = $xmlMovie->resultat->titel.' ('.$xmlMovie->resultat->jahr.'), ';
+            for ($i=0; $i<count($xmlMovie->resultat->genre); $i++)
+                $output .= $xmlMovie->resultat->genre->titel[$i].($i<count($xmlMovie->resultat->genre)-1?', ':'; ');
+                
+            $output .= $xmlMovie->resultat->bewertung->note.'/10';
+            $ret[] = $output;
+            $output = $xmlMovie->resultat->beschreibung;
+            if (mb_strlen($output, 'UTF-8') > $this->CONFIG['max_length'])
+                $output = mb_substr($output, 0, $this->CONFIG['max_length'], 'UTF-8').'...';
+            $ret[] = $output;
+        } 
+        
+        return $ret;
+    }
 
 }
 
