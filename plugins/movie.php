@@ -23,7 +23,7 @@
  * moviePlugin
  * fetches information from ofdb.de using ofdbgw.org XML gateway
  * 
- * TODO: fix length bug.. on the console it send mroe text than arrives
+ * TODO: -
  */
 
 class movie extends Plugin {
@@ -35,11 +35,13 @@ class movie extends Plugin {
 		}
 		
 		$term = $this->info['text'];
+        $xml = NULL;
 		
         if (isset($this->aPossibilities[strtolower($term)]) && !empty($this->aPossibilities[strtolower($term)])) {
             $aOut = $this->getMovie($this->aPossibilities[strtolower($term)]);
             for ($i=0; $i<count($aOut); $i++)
-                $this->sendOutput($aOut[$i]);
+                if (strlen($aOut[$i]))
+                    $this->sendOutput($aOut[$i]);
         } else {
             $iRetries = 0;  // workaround for xml gateway bug not always returning sth
             do {
@@ -54,7 +56,8 @@ class movie extends Plugin {
                 if ($number == 1) {
                     $aOut = $this->getMovie($xml->resultat->eintrag[0]->id);
                     for ($i=0; $i<count($aOut); $i++)
-                        $this->sendOutput($aOut[$i]);
+                        if (strlen($aOut[$i]))
+                            $this->sendOutput($aOut[$i]);
                     
                 } else {
                     $this->sendOutput($this->CONFIG['several_text']);
@@ -86,6 +89,7 @@ class movie extends Plugin {
      */
     function getMovie($id) {
         $ret = array();
+        $line_breaks = array("\n", "\r");
         $iRetries = 0;
         do {
             $resMovie = libHTTP::GET($this->CONFIG['host'], '/movie/'.$id);
@@ -99,11 +103,11 @@ class movie extends Plugin {
                 
             $output .= $xmlMovie->resultat->bewertung->note.'/10';
             $ret[] = $output;
-            $output = $xmlMovie->resultat->beschreibung;
+            $output = str_replace($line_breaks, '', $xmlMovie->resultat->beschreibung);
             if (mb_strlen($output, 'UTF-8') > $this->CONFIG['max_length'])
                 $output = mb_substr($output, 0, $this->CONFIG['max_length'], 'UTF-8').'...';
             $ret[] = $output;
-        } 
+        } //else do some error stuff
         
         return $ret;
     }
