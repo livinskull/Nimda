@@ -38,7 +38,7 @@ class movie extends Plugin {
 		
         if (isset($this->aPossibilities[strtolower($term)]) && !empty($this->aPossibilities[strtolower($term)])) {
             $aOut = $this->getMovie($this->aPossibilities[strtolower($term)]);
-            for ($i=0; $i<count($aOut), $i++)
+            for ($i=0; $i<count($aOut); $i++)
                 $this->sendOutput($aOut[$i]);
         } else {
             $iRetries = 0;  // workaround for xml gateway bug not always returning sth
@@ -53,7 +53,7 @@ class movie extends Plugin {
                 $output = '';
                 if ($number == 1) {
                     $aOut = $this->getMovie($xml->resultat->eintrag[0]->id);
-                    for ($i=0; $i<count($aOut), $i++)
+                    for ($i=0; $i<count($aOut); $i++)
                         $this->sendOutput($aOut[$i]);
                     
                 } else {
