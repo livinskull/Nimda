@@ -72,7 +72,10 @@ class libInternet {
 		
 	return $result;
 	}
-	
+
+	static function googleSearch($search,$language='de',$safe='off') {
+		return libHTTP::GET("www.google.com","/search?q=".urlencode($search)."&hl=".urlencode($language)."&safe=".urlencode($safe));
+	}
 }
 
 ?>
