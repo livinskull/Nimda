@@ -23,7 +23,7 @@
 		
 		
 		
-		$this->sendOutput($matches[1][0]);
+		$this->sendOutput(strip_tags($matches[1][0]));
 		
 	return;
 	}
