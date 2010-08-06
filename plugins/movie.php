@@ -49,7 +49,7 @@ class movie extends Plugin {
                 $xml = simplexml_load_string($result['raw']);
            } while (!$xml && ++$iRetries < $this->CONFIG['max_retries']); 
            
-            $number = isset($xml->resultat->eintrag)?(is_array($xml->resultat->eintrag)?count($xml->resultat->eintrag):1):0;
+            $number = count($xml->resultat->eintrag);
             
             if ($number) {
                 $output = '';
@@ -104,9 +104,10 @@ class movie extends Plugin {
             $output .= $xmlMovie->resultat->bewertung->note.'/10';
             $ret[] = $output;
             $output = str_replace($line_breaks, '', $xmlMovie->resultat->beschreibung);
-            if (mb_strlen($output, 'UTF-8') > $this->CONFIG['max_length'])
-                $output = mb_substr($output, 0, $this->CONFIG['max_length'], 'UTF-8').'...';
-            $ret[] = $output;
+            $link = ' ( http://www.ofdb.de/film/'.$id.', )';
+            if (mb_strlen($output, 'UTF-8') > $this->CONFIG['max_length'] - mb_strlen($link))
+                $output = mb_substr($output, 0, $this->CONFIG['max_length'] - mb_strlen($link), 'UTF-8').'...';
+            $ret[] = $output.$link;
         } //else do some error stuff
         
         return $ret;
