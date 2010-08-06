@@ -21,12 +21,12 @@
 			return;
 		}	
 		
+		$result = preg_replace("/<sup>/",'^',$matches[1][0]);
 		
-		
-		$this->sendOutput(strip_tags($matches[1][0]));
+		$this->sendOutput(html_entity_decode(strip_tags($result)));
 		
 	return;
-	}
+	}	
 }
 
 
