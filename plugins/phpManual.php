@@ -29,18 +29,20 @@ class phpManual extends Plugin {
         }
 		
 		
-        $res = libHTTP::GET($this->CONFIG['language'].'.php.net', '/'.$this->info['text']);
+        $res = libHTTP::GET($this->CONFIG['language'].'.php.net', '/'.$this->info['text'], 'LAST_LANG='.$this->CONFIG['language']);
     
         if (preg_match('/<span class=\"refname\">(.*?)<\/span> &mdash; <span class=\"dc\-title\">(.*?)<\/span>/si', $res['raw'], $match)) {
             $match[2] = str_replace(array("\n", "\r"), ' ', $match[2]);
             preg_match('/<div class=\"methodsynopsis dc\-description\">(.*?)<\/div>/si', $res['raw'], $descmatch);
             $decl = isset($descmatch[1])?'; '.strip_tags($descmatch[1]):'';
             $decl = str_replace(array("\n", "\r"), ' ', $decl);
-            $this->sendOutput($match[1].' - '.utf8_encode(html_entity_decode($match[2])).utf8_encode(html_entity_decode($decl)));
+            $output =  $match[1].' - '.html_entity_decode($match[2]).html_entity_decode($decl);
+            $this->sendOutput(libString::isUTF8($output)?$output:utf8_encode($output));
         } else {    // if several possibilities
             $output = '';
             // FIXME nothing in $res['raw'] ... server sends 302 found.. stupid libhttp :/
-            
+            //if (isset($res['header']['location']))
+            //    $res = 
             var_dump($res);
             
             if (preg_match_all('/<a href=\"\/manual\/[a-z]+\/(?:.*?)\.php\">(?:<b>)?(.*?)(?:<\/b>)?<\/a><br/i', $res['raw'], $matches, PREG_SET_ORDER)) {
@@ -51,7 +53,7 @@ class phpManual extends Plugin {
             } else {
                 $output = $this->CONFIG['notfound_text'].' http://'.$this->CONFIG['language'].'.php.net/search.php?show=wholesite&pattern='.$this->info['text'];
             }
-            $this->sendOutput($output);
+            $this->sendOutput(libString::isUTF8($output)?$output:utf8_encode($output));
         }
                 
 	}
