@@ -27,17 +27,16 @@ class phpManual extends Plugin {
 			$this->sendOutput($output);
 			return;
 		}
-			
 		
-		$this->fetchDescription($this->info['text']);
-                
+		
+		$this->fetchDescription($this->info['text']);                
 	}
 
 	function fetchDescription($func) {
 		$res = libHTTP::GET($this->CONFIG['language'].'.php.net', '/'.$func, 'LAST_LANG='.$this->CONFIG['language']);
 	
 		if (preg_match('/<span class=\"refname\">(.*?)<\/span> &mdash; <span class=\"dc\-title\">(.*?)<\/span>/si', $res['raw'], $match)) {
-			$match[2] = str_replace(array("\n", "\r"), ' ', $match[2]);
+			$match[2] = str_replace(array("\n", "\r"), ' ', strip_tags($match[2]));
 			preg_match('/<div class=\"methodsynopsis dc\-description\">(.*?)<\/div>/si', $res['raw'], $descmatch);
 			$decl = isset($descmatch[1])?strip_tags($descmatch[1]):$match[1];
 			$decl = html_entity_decode(str_replace(array("\n", "\r"), ' ', $decl));
@@ -52,15 +51,11 @@ class phpManual extends Plugin {
 				$res =  libHTTP::GET($urlparts['host'], $urlparts['path'].'?'.$urlparts['query'], 'LAST_LANG='.$this->CONFIG['language']);
 			}
 		
-			if (preg_match_all('/<a href=\"\/manual\/[a-z]+\/(?:.*?)\.php\">(?:<b>)?(.*?)(?:<\/b>)?<\/a><br/i', $res['raw'], $matches, PREG_SET_ORDER)) {
-				//$output = 'several possibilities: ';
-				//for ($i=0; $i<count($matches); ++$i)
-				//	$output .= $matches[$i][1].(($i < count($matches)-1)?', ':'');
-				
+			if (preg_match_all('/<a href=\"\/manual\/[a-z]+\/(?:.*?)\.php\">(?:<b>)?(.*?)(?:<\/b>)?<\/a><br/i', $res['raw'], $matches, PREG_SET_ORDER))
 				$this->fetchDescription($matches[0][1]);
-			} else {
+			else
 				$output = $this->CONFIG['notfound_text'].' http://'.$this->CONFIG['language'].'.php.net/search.php?show=wholesite&pattern='.$func;
-			}
+
 			$this->sendOutput(libString::isUTF8($output)?$output:utf8_encode($output));
 		}
 	}
