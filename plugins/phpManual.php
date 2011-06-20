@@ -20,6 +20,7 @@
 */
 
 class phpManual extends Plugin {
+	private $redirects;
 	
 	function isTriggered() {
 		if (!isset($this->info['text'])) {
@@ -28,7 +29,7 @@ class phpManual extends Plugin {
 			return;
 		}
 		
-		
+		$this->redirects = 0;		
 		$this->fetchDescription($this->info['text']);                
 	}
 
@@ -51,9 +52,13 @@ class phpManual extends Plugin {
 				$res =  libHTTP::GET($urlparts['host'], $urlparts['path'].'?'.$urlparts['query'], 'LAST_LANG='.$this->CONFIG['language']);
 			}
 		
-			if (preg_match_all('/<a href=\"\/manual\/[a-z]+\/(?:.*?)\.php\">(?:<b>)?(.*?)(?:<\/b>)?<\/a><br/i', $res['raw'], $matches, PREG_SET_ORDER))
-				$this->fetchDescription($matches[0][1]);
-			else
+			if (preg_match_all('/<a href=\"\/manual\/[a-z]+\/(?:.*?)\.php\">(?:<b>)?(.*?)(?:<\/b>)?<\/a><br/i', $res['raw'], $matches, PREG_SET_ORDER)) {
+				if ($this->redirects++ < 2)
+					$this->fetchDescription($matches[0][1]);
+				else 
+					$this->sendOutput($this->CONFIG['notfound_text'].' http://'.$this->CONFIG['language'].'.php.net/search.php?show=wholesite&pattern='.$this->info['text']);
+				return;
+			} else
 				$output = $this->CONFIG['notfound_text'].' http://'.$this->CONFIG['language'].'.php.net/search.php?show=wholesite&pattern='.$func;
 
 			$this->sendOutput(libString::isUTF8($output)?$output:utf8_encode($output));
